@@ -86,13 +86,15 @@ class ConfidenceRouter:
         #      action="escalate", priority="high",
         #      requires_human=True, reason="Low confidence — escalating"
 
-        return RoutingDecision(
-            action="auto_send",
-            confidence=confidence,
-            reason="TODO: implement routing logic",
-            priority="low",
-            requires_human=False,
-        )  # TODO: Replace with implementation
+        if not 0 <= confidence <= 1:
+            raise ValueError("confidence must be a finite number between 0 and 1")
+        if action_type in HIGH_RISK_ACTIONS:
+            return RoutingDecision("escalate", confidence, f"High-risk action: {action_type}", "high", True)
+        if confidence >= self.HIGH_THRESHOLD:
+            return RoutingDecision("auto_send", confidence, "High confidence", "low", False)
+        if confidence >= self.MEDIUM_THRESHOLD:
+            return RoutingDecision("queue_review", confidence, "Medium confidence — needs review", "normal", True)
+        return RoutingDecision("escalate", confidence, "Low confidence — escalating", "high", True)
 
 
 # ============================================================

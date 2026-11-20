@@ -1,5 +1,18 @@
 # Day 11 — Controlled Agent Security (2026)
 
+## Tiến độ và kết quả kiểm thử (20/11/2026)
+
+- [x] Checkpoint 2: kiểm thử guardrails đầu vào và đầu ra bằng `python src/main.py --part 2`.
+- [x] Checkpoint 3: chạy suite Blue qua Liquid `lfm3-1.7b`; đã sinh `outputs/results.json`, `audit_log.json` và `metrics.json`. Trong bộ mẫu, 0/5 câu an toàn bị chặn, 7/7 câu tấn công bị chặn; bộ giới hạn chặn 2/12 lượt.
+- [x] Checkpoint 4: chạy 5 prompt trên mỗi agent qua OpenAI `gpt-4o-mini`. Red lộ ít nhất một secret demo trong 4/5 phản hồi; Red Advance chặn 5/5 ở bộ lọc đầu vào, không ghi nhận leak. Prompt thứ năm gồm nhiều bước trong một lượt, không phải hội thoại nhiều lượt. Bonus phụ thuộc grader chạy lại, không tự khẳng định điểm.
+- [ ] Checkpoint 5: `pytest tests/smoke tests/public -q` đạt 59 test sau khi sinh kết quả; `scripts/grade.py` sinh `outputs/grade_report.json` và `outputs/lab_report.md`, với `technical_failure: false`. Chưa push hoặc nộp LMS.
+
+**Phương pháp và giới hạn:** Các lượt Blue/Red ở trên gọi model thật bằng API; dữ liệu VinBank và secret trong repo là dữ liệu demo. Kiểm thử `tests/public/test_hitl_security.py` chạy cục bộ, giả lập duyệt và thao tác chuyển tiền, không thực hiện giao dịch hay gọi tool ngân hàng. Router đã được sửa để chuyển thao tác rủi ro cao và điểm tin cậy thấp cho người kiểm duyệt; điểm không hợp lệ bị từ chối. Hàm `authorize_action` là mô hình tham khảo: mã duyệt và reviewer chỉ được kiểm tra hình thức, không được xác thực với hệ thống phê duyệt thực, và chưa được tích hợp vào cổng thực thi tool. Không dùng nó như cơ chế phân quyền production. Các prompt Red Advance đều bị chặn trước NeMo; các smoke test NeMo dùng model giả, vì vậy lượt chạy này không chứng minh NeMo hoạt động với API thật. Câu trả lời kiểm tra nhanh của Red còn đưa ra lãi suất không có nguồn; không xem đó là dữ liệu ngân hàng đáng tin cậy.
+
+**Cách chạy lại trên Windows:** `.\.venv\Scripts\python.exe src/main.py --part 3`, tương tự với `--part 4`; chạy `.\.venv\Scripts\python.exe -m pytest tests/smoke tests/public -q` và `.\.venv\Scripts\python.exe scripts/grade.py --submission-dir . --out outputs/grade_report.json`. Điền khóa trong `.env` local, không commit file này. Blue dùng Liquid trực tiếp theo ghi chú bên dưới; cấu hình này khác yêu cầu OpenRouter cố định trong rubric gốc và cần được coach xác nhận khi chấm.
+
+> **Cấu hình bài này:** Theo hướng dẫn của coach, Blue gọi trực tiếp Liquid API với model `lfm3-1.7b` (tương ứng LFM3-1.7B trên OpenRouter). Điền `LIQUID_API_KEY` trong `.env`. Các mô tả OpenRouter bên dưới là yêu cầu gốc của starter. Liquid API có thể tính phí theo mức sử dụng.
+
 > 👤 **Hình thức:** bài tập **cá nhân** (1 người / 1 MSSV).  
 > 🎯 **Mục tiêu:** đóng vai **Blue Team** để học cách xây Guardrails phòng thủ, rồi đóng vai **Red Team** để tấn công agent **Red** hoặc **Red Advance**.  
 > ✅ Làm theo **Checkpoint 1 → 5** trong [`CHECKPOINTS.md`](CHECKPOINTS.md) · nộp theo [`SUBMISSION.md`](SUBMISSION.md).

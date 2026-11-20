@@ -13,6 +13,7 @@ from google.adk import runners
 from google.adk.plugins import base_plugin
 
 from core.utils import chat_with_agent
+from core.config import DEMO_SECRETS
 
 
 # ============================================================
@@ -41,12 +42,12 @@ def content_filter(response: str) -> dict:
 
     # PII patterns to check
     PII_PATTERNS = {
-        # TODO: Add regex patterns for:
-        # - VN phone number: r"0\d{9,10}"
-        # - Email: r"[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}"
-        # - National ID (CMND/CCCD): r"\b\d{9}\b|\b\d{12}\b"
-        # - API key pattern: r"sk-[a-zA-Z0-9-]+"
-        # - Password pattern: r"password\s*[:=]\s*\S+"
+        "email": r"\b[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}\b",
+        "api_key": r"\bsk-[a-zA-Z0-9_-]+",
+        "password": r"\b(?:password|passcode|mật\s*khẩu)\s*(?:is\s+|là\s+|[:=]\s*)[^\s,;]+",
+        "phone": r"(?<!\d)(?:0\d{9,10}|\+84[\s.-]?\d{9,10})(?!\d)",
+        "national_id": r"(?<!\d)(?:\d{9}|\d{12})(?!\d)",
+        "db_host": r"\bdb\.vinbank\.internal(?::\d+)?\b",
     }
 
     for name, pattern in PII_PATTERNS.items():
@@ -54,6 +55,12 @@ def content_filter(response: str) -> dict:
         if matches:
             issues.append(f"{name}: {len(matches)} found")
             redacted = re.sub(pattern, "[REDACTED]", redacted, flags=re.IGNORECASE)
+
+    # Values must be protected even when the model omits their labels.
+    for secret in sorted(DEMO_SECRETS, key=len, reverse=True):
+        if secret and re.search(re.escape(secret), redacted, re.IGNORECASE):
+            issues.append("protected_value: found")
+            redacted = re.sub(re.escape(secret), "[REDACTED]", redacted, flags=re.IGNORECASE)
 
     return {
         "safe": len(issues) == 0,
@@ -172,16 +179,20 @@ class OutputGuardrailPlugin(base_plugin.BasePlugin):
         if not response_text:
             return llm_response
 
-        # TODO: Implement logic:
-        # 1. Call content_filter(response_text)
-        #    - If issues found: replace llm_response.content with redacted version
-        #    - Increment self.redacted_count
-        # 2. If use_llm_judge: call llm_safety_check(response_text)
-        #    - If unsafe: replace llm_response.content with a safe message
-        #    - Increment self.blocked_count
-        # 3. Return llm_response (possibly modified)
-
-        return llm_response  # TODO: modify if needed
+        result = content_filter(response_text)
+        output_text = result["redacted"]
+        if not result["safe"]:
+            self.redacted_count += 1
+        if self.use_llm_judge:
+            verdict = await llm_safety_check(output_text)
+            if not verdict["safe"]:
+                self.blocked_count += 1
+                output_text = "Response withheld by output guardrail."
+        if output_text != response_text:
+            llm_response.content = types.Content(
+                role="model", parts=[types.Part.from_text(text=output_text)]
+            )
+        return llm_response
 
 
 # ============================================================
