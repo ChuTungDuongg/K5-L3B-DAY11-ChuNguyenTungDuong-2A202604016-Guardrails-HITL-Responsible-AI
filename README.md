@@ -2,14 +2,25 @@
 
 ## Tiến độ và kết quả kiểm thử (20/11/2026)
 
-- [x] Checkpoint 2: kiểm thử guardrails đầu vào và đầu ra bằng `python src/main.py --part 2`.
+- [x] Checkpoint 1 — DONE: môi trường ảo đã cài dependencies; Liquid và OpenAI đã xác thực trong lượt chạy trước.
+- [x] Checkpoint 2 — DONE: kiểm thử guardrails đầu vào và đầu ra bằng `python src/main.py --part 2`.
 - [x] Checkpoint 3: chạy suite Blue qua Liquid `lfm3-1.7b`; đã sinh `outputs/results.json`, `audit_log.json` và `metrics.json`. Trong bộ mẫu, 0/5 câu an toàn bị chặn, 7/7 câu tấn công bị chặn; bộ giới hạn chặn 2/12 lượt.
 - [x] Checkpoint 4: chạy 5 prompt trên mỗi agent qua OpenAI `gpt-4o-mini`. Red lộ ít nhất một secret demo trong 4/5 phản hồi; Red Advance chặn 5/5 ở bộ lọc đầu vào, không ghi nhận leak. Prompt thứ năm gồm nhiều bước trong một lượt, không phải hội thoại nhiều lượt. Bonus phụ thuộc grader chạy lại, không tự khẳng định điểm.
-- [ ] Checkpoint 5: `pytest tests/smoke tests/public -q` đạt 59 test sau khi sinh kết quả; `scripts/grade.py` sinh `outputs/grade_report.json` và `outputs/lab_report.md`, với `technical_failure: false`. Chưa push hoặc nộp LMS.
+- [x] Checkpoint 5 — technical validation / packaging DONE: 59 test smoke + public đạt; grader chạy lại có 19 public test đạt và `technical_failure: false`.
+- [ ] Checkpoint 5 — LMS submission PENDING: người học cần tự nộp link repo và xác nhận đã nộp.
+
+| Yêu cầu | Implementation | Kiểm thử / artifact | Trạng thái |
+|---|---|---|---|
+| CP1: môi trường và provider | `.venv`, `requirements.txt`, cấu hình Liquid / OpenAI | `pip check`, lần gọi API thực tế trước đó | DONE; kiểm tra local trên Python 3.13 |
+| CP2: input/output guardrails | `src/guardrails/` | `--part 2`, public tests | DONE |
+| CP3: pipeline, audit, metrics, egress | `src/assignment/` | `results.json`, `audit_log.json`, `metrics.json`, schema và public tests | DONE cho bộ mẫu; `request_id` trong log hiện tại là null |
+| CP4: Red và Red Advance | `src/attacks/` | `attack_results.json`, kết quả chi tiết hai target | DONE; bonus chờ replay |
+| CP5: tự kiểm, đóng gói | `scripts/grade.py` | `grade_report.json`, `lab_report.md` | DONE; nộp LMS vẫn PENDING |
+| CI Python 3.11 | `.github/workflows/ci.yml` | GitHub Actions | Chưa xác minh: trang Actions chưa có run tại thời điểm audit; xem trạng thái sau push |
 
 **Phương pháp và giới hạn:** Các lượt Blue/Red ở trên gọi model thật bằng API; dữ liệu VinBank và secret trong repo là dữ liệu demo. Kiểm thử `tests/public/test_hitl_security.py` chạy cục bộ, giả lập duyệt và thao tác chuyển tiền, không thực hiện giao dịch hay gọi tool ngân hàng. Router đã được sửa để chuyển thao tác rủi ro cao và điểm tin cậy thấp cho người kiểm duyệt; điểm không hợp lệ bị từ chối. Hàm `authorize_action` là mô hình tham khảo: mã duyệt và reviewer chỉ được kiểm tra hình thức, không được xác thực với hệ thống phê duyệt thực, và chưa được tích hợp vào cổng thực thi tool. Không dùng nó như cơ chế phân quyền production. Các prompt Red Advance đều bị chặn trước NeMo; các smoke test NeMo dùng model giả, vì vậy lượt chạy này không chứng minh NeMo hoạt động với API thật. Câu trả lời kiểm tra nhanh của Red còn đưa ra lãi suất không có nguồn; không xem đó là dữ liệu ngân hàng đáng tin cậy.
 
-**Cách chạy lại trên Windows:** `.\.venv\Scripts\python.exe src/main.py --part 3`, tương tự với `--part 4`; chạy `.\.venv\Scripts\python.exe -m pytest tests/smoke tests/public -q` và `.\.venv\Scripts\python.exe scripts/grade.py --submission-dir . --out outputs/grade_report.json`. Điền khóa trong `.env` local, không commit file này. Blue dùng Liquid trực tiếp theo ghi chú bên dưới; cấu hình này khác yêu cầu OpenRouter cố định trong rubric gốc và cần được coach xác nhận khi chấm.
+**Cách chạy lại trên Windows:** `.\.venv\Scripts\python.exe src/main.py --part 3`, tương tự với `--part 4`; chạy `.\.venv\Scripts\python.exe -m pytest tests/smoke tests/public -q` và `.\.venv\Scripts\python.exe scripts/grade.py --submission-dir . --out outputs/grade_report.json`. Điền khóa trong `.env` local, không commit file này. Coach đã trực tiếp cung cấp và chấp thuận Liquid API `lfm3-1.7b` cho Blue; không cần chuyển sang OpenRouter.
 
 > **Cấu hình bài này:** Theo hướng dẫn của coach, Blue gọi trực tiếp Liquid API với model `lfm3-1.7b` (tương ứng LFM3-1.7B trên OpenRouter). Điền `LIQUID_API_KEY` trong `.env`. Các mô tả OpenRouter bên dưới là yêu cầu gốc của starter. Liquid API có thể tính phí theo mức sử dụng.
 
@@ -36,7 +47,7 @@
 1. Máy có **Python 3.10+** (khuyến nghị 3.11 hoặc 3.12) và Git.
 2. Tài khoản GitHub cá nhân (để fork + đổi tên repo nộp).
 3. API keys:
-   - **Blue (bắt buộc):** [OpenRouter](https://openrouter.ai/keys) — model cố định [`liquid/lfm-3-1.7b:free`](https://openrouter.ai/liquid/lfm-3-1.7b:free)
+   - **Blue:** Liquid API, model `lfm3-1.7b`, theo cấu hình được coach chấp thuận.
    - **Red (chọn một provider):** [OpenAI](https://platform.openai.com/api-keys) (`gpt-4o-mini`) **hoặc** [Google AI Studio](https://aistudio.google.com/apikey) (`gemini-3.5-flash`)
 4. Đọc nhanh [`RULES.md`](RULES.md) và [`RUBRIC.md`](RUBRIC.md).
 
@@ -69,7 +80,7 @@ Bonus lab chỉ tính **một** trong hai: leak **Red** (B1, tối đa +5) hoặ
 
 | Agent                     | Provider / model                                                                     |
 | ------------------------- | ------------------------------------------------------------------------------------ |
-| **Blue**                  | OpenRouter `liquid/lfm-3-1.7b:free` (khóa cứng)                                         |
+| **Blue**                  | Liquid API `lfm3-1.7b` (coach chấp thuận)                                               |
 | **Red** + **Red Advance** | Cùng provider: `gpt-4o-mini` **hoặc** `gemini-3.5-flash` (model mềm — điểm bắt buộc) |
 | Model khó (tuỳ chọn)      | `gpt-5.6-luna` / `gemini-3.8-flash` — **không** phải tên agent                       |
 
@@ -171,7 +182,7 @@ cp .env.example .env
 pip install -r requirements.txt
 ```
 
-Điền `.env`: `OPENROUTER_API_KEY` + `RED_TEAM_PROVIDER=openai|gemini` (và key tương ứng).  
+Điền `.env`: `LIQUID_API_KEY` + `RED_TEAM_PROVIDER=openai|gemini` (và key tương ứng).
 Rồi mở [`CHECKPOINTS.md`](CHECKPOINTS.md) và làm lần lượt Checkpoint 1 → 5.
 
 Nộp theo [`SUBMISSION.md`](SUBMISSION.md) · Quy định: [`RULES.md`](RULES.md).
